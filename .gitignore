@@ -1,0 +1,36 @@
+__pycache__/
+.py[cod]
+$py.class
+.pytest_cache
+
+# Virtualenv
+.Python
+env/
+env.bak/
+venv/
+ENV/
+env.backup/
+virtual/
+.venv/
+.env/
+
+# Local config
+.env
+.envrc
+
+# Logs
+logs
+.log
+
+# db
+alembic
+var/
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# IDEs and editors
+.vscode/
+.idea/
+.swp

@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: on-failure
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-task_manager}
+    volumes:
+      - ./var/db:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_HOST_PORT:-5435}:5432"
+  
+  app:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    command: python3 -m app.main
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/code/app
+    depends_on:
+      - postgres
+    environment:
+      - RUNNING_IN_DOCKER=true
+      - DB_URL=${DB_URL}
