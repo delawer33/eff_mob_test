@@ -1,21 +1,26 @@
 import asyncio
-from passlib.context import CryptContext
 
+from sqlalchemy.ext.asyncio import (
+    async_sessionmaker,
+    create_async_engine,
+)
 from app.db.base import Base
+from app.config.settings import get_settings
 from app.models import Role, BusinessElement, AccessRoleRule, User
 from app.db.base import async_session_maker, engine
-from app.config.settings import get_settings
 from app.utils.auth import get_password_hash
 
-app_settings = get_settings()
+DB_URL = str(get_settings().DB_URL)
 
-DATABASE_URL = str(app_settings.DB_URL)
+engine = create_async_engine(DB_URL)
+
+async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
 
 async def init_db():
-    async with engine.begin() as conn:  # используем engine, а не сессию
-        await conn.run_sync(Base.metadata.drop_all)  # удаляем все таблицы
-        await conn.run_sync(Base.metadata.create_all)  # создаём таблицы заново
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
     
     async with async_session_maker() as session:
         roles = [

@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "task_manager"
     DEBUG: bool = True
 
-    DB_URL: PostgresDsn = ()
+    DB_URL: PostgresDsn
 
     secret_key: str
     algorithm: str

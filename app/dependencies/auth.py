@@ -6,7 +6,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.config.settings import get_settings
-from app.dao import UserDAO
 from app.models import User
 from app.db.base import get_async_db_session
 
@@ -73,3 +72,4 @@ async def get_current_user_admin(user: User = Depends(get_current_user)):
             detail="У вас нет прав администратора",
         )
     return user
+

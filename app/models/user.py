@@ -7,10 +7,6 @@ from datetime import datetime, timezone
 from app.db.base import Base
 
 
-__all__ = [
-    "User"
-]
-
 class User(Base):
     __tablename__ = "users"
 
@@ -34,3 +30,8 @@ class User(Base):
 
     def __repr__(self):
         return f"<User(id={self.id}, username={self.username}, email={self.email})>"
+
+
+__all__ = [
+    "User"
+]

@@ -25,7 +25,6 @@ class SUserRegister(BaseModel):
         max_length=50,
         description="Подтверждение пароля, от 5 до 50 знаков",
     )
-    # role_id: int = Field(..., description="id роли из таблицы Roles")
 
 
 class SUserAuth(BaseModel):
@@ -57,6 +56,6 @@ class SUserUpdate(BaseModel):
 
 
 class SUserChangePassword(BaseModel):
-    old_password: str = Field(..., min_length=5, max_length=50)
+    current_password: str = Field(..., min_length=5, max_length=50)
     new_password: str = Field(..., min_length=5, max_length=50)
 

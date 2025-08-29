@@ -24,6 +24,7 @@ logs
 
 # db
 alembic
+alembic.ini
 var/
 
 # OS-specific

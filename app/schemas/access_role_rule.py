@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
 from .role import SRoleResponse
@@ -29,5 +29,6 @@ class SAccessRoleRuleUpdate(BaseModel):
 class SAccessRoleRuleResponse(SAccessRoleRuleBase):
     id: int
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(
+        from_attributes=True
+    )

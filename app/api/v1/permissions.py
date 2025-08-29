@@ -1,4 +1,4 @@
-
+import logging
 from fastapi import (
     APIRouter,
     HTTPException,
@@ -6,10 +6,11 @@ from fastapi import (
     Response,
     Request,
     Depends,
+    Query
 )
-from typing import List
+from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import delete, select, or_
+from sqlalchemy import delete, select, or_, and_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 from app.utils.auth import (
@@ -18,7 +19,6 @@ from app.utils.auth import (
     create_access_token,
     change_password as utils_change_pwd
 )
-from app.dao import UserDAO, RoleDAO
 from app.schemas.user import SUserRegister, SUserAuth, SUserUpdate, SUserResponse, SUserChangePassword
 from app.schemas.role import SRoleAssignRequest, SRoleResponse
 from app.schemas.business_element import SBusinessElResponse
@@ -35,6 +35,18 @@ from app.utils import (
 from app.config.settings import get_settings
 
 app_settings = get_settings()
+
+logger = logging.getLogger(__name__)
+
+if app_settings.DEBUG:
+    logger.setLevel(logging.INFO)
+else:
+    logger.setLevel(logging.ERROR)
+
+handler = logging.StreamHandler()
+formatter = logging.Formatter('%(levelname)s:     %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 router = APIRouter(prefix="/permissions", tags=["Permissions"])
 
@@ -73,7 +85,7 @@ async def create_access_rule(
         if be is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Role with id={access_rule_in.element_id} does not exist"
+                detail=f"Business element with id={access_rule_in.element_id} does not exist"
             )
 
         new_rule = AccessRoleRule(
@@ -90,49 +102,84 @@ async def create_access_rule(
         db.add(new_rule)
         await db.commit()
         await db.refresh(new_rule)
+        logger.info(f"Created new access rule: {new_rule.id}")
         return new_rule
-
+    
     except SQLAlchemyError as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.error(f"Database error in create_access_rule: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="A database error occurred.")
+    
+    except HTTPException as e:
+        await db.rollback()
+        raise e
+    
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Unexpected error in create_access_rule: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
 
-@router.get("/permissions/", response_model=List[SAccessRoleRuleResponse])
-async def get_access_rules(db: AsyncSession = Depends(get_async_db_session), current_user=Depends(get_current_user_admin)):
-    result = await db.execute(select(AccessRoleRule))
-    permissions = result.scalars().all()
-    return permissions
+@router.get("/access-rules/", response_model=List[SAccessRoleRuleResponse])
+async def get_access_rules(
+    role_id: Optional[int] = Query(None, description="Filter by role ID"),
+    element_id: Optional[int] = Query(None, description="Filter by business element ID"),
+    db: AsyncSession = Depends(get_async_db_session),
+    current_user = Depends(get_current_user_admin)
+):
+    try:
+        conditions = []
+        if role_id is not None:
+            conditions.append(AccessRoleRule.role_id == role_id)
+        if element_id is not None:
+            conditions.append(AccessRoleRule.element_id == element_id)
 
+        if conditions:
+            filter_cond = and_(*conditions)
+            query = select(AccessRoleRule).where(filter_cond)
+        else:
+            query = select(AccessRoleRule)
+
+        result = await db.execute(query)
+        rules = result.scalars().all()
+        
+        if not rules:
+            raise HTTPException(status_code=404, detail="No access rules found for the given filters")
+
+        logger.info(f"Retrieved {len(rules)} access rules.")
+        return rules
+    
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logger.error(f"Database error in get_access_rules: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="A database error occurred.")
+    
+    except HTTPException as e:
+        await db.rollback()
+        raise e
+    
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Unexpected error in get_access_rules: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
 @router.get("/business-elements/", response_model=List[SBusinessElResponse])
 async def get_business_elements(db: AsyncSession = Depends(get_async_db_session), current_user=Depends(get_current_user_admin)):
-    result = await db.execute(select(BusinessElement))
-    be = result.scalars().all()
-    return be
-
-@router.get("/role/{role_id}", response_model=List[SAccessRoleRuleResponse])
-async def get_access_rule_by_role(
-    role_id: int,
-    db: AsyncSession = Depends(get_async_db_session),
-    current_user = Depends(get_current_user_admin),
-):
-    result = await db.execute(select(AccessRoleRule).where(AccessRoleRule.role_id == role_id))
-    rules = result.scalars().all()
-    if not rules:
-        raise HTTPException(status_code=404, detail="No access rules found for this role")
-    return rules
-
-@router.get("/element/{element_id}", response_model=List[SAccessRoleRuleResponse])
-async def get_access_rule_by_business_element(
-    element_id: int,
-    db: AsyncSession = Depends(get_async_db_session),
-    current_user = Depends(get_current_user_admin),
-):
-    result = await db.execute(select(AccessRoleRule).where(AccessRoleRule.element_id == element_id))
-    rules = result.scalars().all()
-    if not rules:
-        raise HTTPException(status_code=404, detail="No access rules found for this business element")
-    return rules
+    try:
+        result = await db.execute(select(BusinessElement))
+        be = result.scalars().all()
+        logger.info(f"Retrieved {len(be)} business elements.")
+        return be
+    
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logger.error(f"Database error in get_business_elements: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="A database error occurred.")
+    
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Unexpected error in get_business_elements: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
 @router.get("/access-rules/{rule_id}", response_model=SAccessRoleRuleResponse)
 async def get_access_rule_by_id(
@@ -140,32 +187,64 @@ async def get_access_rule_by_id(
     db: AsyncSession = Depends(get_async_db_session),
     current_user = Depends(get_current_user_admin),
 ):
-    result = await db.execute(select(AccessRoleRule).where(AccessRoleRule.id == rule_id))
-    rule = result.scalars().first()
-    if not rule:
-        raise HTTPException(status_code=404, detail="Access role rule not found")
-    return rule
+    try:
+        result = await db.execute(select(AccessRoleRule).where(AccessRoleRule.id == rule_id))
+        rule = result.scalars().first()
+        if not rule:
+            raise HTTPException(status_code=404, detail="Access role rule not found")
+        logger.info(f"Retrieved access rule with ID: {rule_id}")
+        return rule
+    
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logger.error(f"Database error in get_access_rule_by_id: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="A database error occurred.")
+    
+    except HTTPException as e:
+        await db.rollback()
+        raise e
+    
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Unexpected error in get_access_rule_by_id: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
 
-@router.patch("/permissions/{rule_id}", response_model=SAccessRoleRuleResponse)
+@router.patch("/access-rules/{rule_id}", response_model=SAccessRoleRuleResponse)
 async def update_access_rule_by_id(
     rule_id: int,
     rule_update: SAccessRoleRuleUpdate,
     current_user: User = Depends(get_current_user_admin),
     db: AsyncSession = Depends(get_async_db_session),
 ):
-    result = await db.execute(select(AccessRoleRule).where(AccessRoleRule.id == rule_id).options(selectinload(AccessRoleRule.role)))
-    rule = result.scalars().first()
-    if not rule:
-        raise HTTPException(status_code=404, detail="Access rule not found")
+    try:
+        result = await db.execute(select(AccessRoleRule).where(AccessRoleRule.id == rule_id).options(selectinload(AccessRoleRule.role)))
+        rule = result.scalars().first()
+        if not rule:
+            raise HTTPException(status_code=404, detail="Access rule not found")
 
-    for field, value in rule_update.model_dump(exclude_unset=True).items():
-        setattr(rule, field, value)
+        for field, value in rule_update.model_dump(exclude_unset=True).items():
+            setattr(rule, field, value)
 
-    db.add(rule)
-    await db.commit()
-    await db.refresh(rule)
-    return rule
+        db.add(rule)
+        await db.commit()
+        await db.refresh(rule)
+        logger.info(f"Updated access rule with ID: {rule_id}")
+        return rule
+    
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logger.error(f"Database error in update_access_rule_by_id: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="A database error occurred.")
+    
+    except HTTPException as e:
+        await db.rollback()
+        raise e
+    
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Unexpected error in update_access_rule_by_id: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
 @router.patch("/access-rules/")
 async def update_access_rule(
@@ -175,20 +254,36 @@ async def update_access_rule(
     current_user: User = Depends(get_current_user_admin),
     db: AsyncSession = Depends(get_async_db_session),
 ):
-    result = await db.execute(select(AccessRoleRule).where(
-        (AccessRoleRule.role_id == role_id) & (AccessRoleRule.element_id == element_id)
-    ))
-    rule = result.scalars().first()
-    if not rule:
-        raise HTTPException(status_code=404, detail="Access rule not found")
+    try:
+        result = await db.execute(select(AccessRoleRule).where(
+            (AccessRoleRule.role_id == role_id) & (AccessRoleRule.element_id == element_id)
+        ))
+        rule = result.scalars().first()
+        if not rule:
+            raise HTTPException(status_code=404, detail="Access rule not found")
 
-    for field, value in rule_update.model_dump(exclude_unset=True).items():
-        setattr(rule, field, value)
+        for field, value in rule_update.model_dump(exclude_unset=True).items():
+            setattr(rule, field, value)
 
-    db.add(rule)
-    await db.commit()
-    await db.refresh(rule)
-    return rule
+        db.add(rule)
+        await db.commit()
+        await db.refresh(rule)
+        logger.info(f"Updated access rule for role_id={role_id} and element_id={element_id}")
+        return rule
+    
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logger.error(f"Database error in update_access_rule: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="A database error occurred.")
+    
+    except HTTPException as e:
+        await db.rollback()
+        raise e
+    
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Unexpected error in update_access_rule: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
 
 @router.delete("/access-rules/{rule_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -197,10 +292,26 @@ async def delete_access_rule(
     db: AsyncSession = Depends(get_async_db_session),
     current_user = Depends(get_current_user_admin)
 ):
-    result = await db.execute(select(AccessRoleRule).where(AccessRoleRule.id == rule_id))
-    rule = result.scalars().first()
-    if not rule:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Access rule not found")
+    try:
+        result = await db.execute(select(AccessRoleRule).where(AccessRoleRule.id == rule_id))
+        rule = result.scalars().first()
+        if not rule:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Access rule not found")
 
-    await db.delete(rule)
-    await db.commit()
+        await db.delete(rule)
+        await db.commit()
+        logger.info(f"Deleted access rule with ID: {rule_id}")
+    
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logger.error(f"Database error in delete_access_rule: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="A database error occurred.")
+    
+    except HTTPException as e:
+        await db.rollback()
+        raise e
+    
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Unexpected error in delete_access_rule: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")

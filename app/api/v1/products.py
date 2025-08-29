@@ -1,3 +1,4 @@
+import logging
 from fastapi import (
     APIRouter,
     HTTPException,
@@ -18,7 +19,6 @@ from app.utils.auth import (
     create_access_token,
 )
 from app.utils.access_control import AccessControlService
-from app.dao import UserDAO, RoleDAO
 from app.schemas.user import SUserRegister, SUserAuth, SUserResponse
 from app.schemas.product import SProductResponse, SProductCreate, SProductUpdate
 from app.models import User, RefreshToken, Role, Product
@@ -32,6 +32,18 @@ from app.utils import (
 from app.config.settings import get_settings
 
 app_settings = get_settings()
+
+logger = logging.getLogger(__name__)
+
+if app_settings.DEBUG:
+    logger.setLevel(logging.INFO)
+else:
+    logger.setLevel(logging.ERROR)
+
+handler = logging.StreamHandler()
+formatter = logging.Formatter('%(levelname)s:     %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
@@ -72,16 +84,19 @@ async def get_all_products(
 
         result = await db.execute(query)
         products = result.scalars().all()
+        logger.info(f"Retrieved {len(products)} products.")
         return products
     except SQLAlchemyError as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.error(f"Database error in get_all_products: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="A database error occurred.")
     except HTTPException as e:
         await db.rollback()
         raise e
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        logger.error(f"Unexpected error in get_all_products: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
 @router.get("/{product_id}", response_model=SProductResponse)
 async def get_product(
@@ -100,16 +115,22 @@ async def get_product(
 
         if not can_read_all and (product.owner_id != current_user.id or not can_read_own):
             raise HTTPException(status_code=403, detail="Access denied")
+        logger.info(f"Retrieved product with ID: {product_id}")
         return product
+    
     except SQLAlchemyError as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.error(f"Database error in get_product: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="A database error occurred.")
+    
     except HTTPException as e:
         await db.rollback()
         raise e
+    
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        logger.error(f"Unexpected error in get_product: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
 @router.post("/", response_model=SProductResponse, status_code=status.HTTP_201_CREATED)
 async def create_product(
@@ -126,16 +147,19 @@ async def create_product(
         db.add(new_product)
         await db.commit()
         await db.refresh(new_product)
+        logger.info(f"Product created with ID: {new_product.id}")
         return new_product
     except SQLAlchemyError as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.error(f"Database error in create_product: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="A database error occurred.")
     except HTTPException as e:
         await db.rollback()
         raise e
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        logger.error(f"Unexpected error in create_product: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
 @router.patch("/{product_id}", response_model=SProductResponse)
 async def update_product(
@@ -161,10 +185,12 @@ async def update_product(
         db.add(product)
         await db.commit()
         await db.refresh(product)
+        logger.info(f"Product {product_id} updated successfully.")
         return product
     except SQLAlchemyError as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.error(f"Database error in update_product: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="A database error occurred.")
     
     except HTTPException as e:
         await db.rollback()
@@ -172,7 +198,8 @@ async def update_product(
     
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        logger.error(f"Unexpected error in update_product: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_product(
@@ -194,12 +221,15 @@ async def delete_product(
 
         await db.delete(product)
         await db.commit()
+        logger.info(f"Product {product_id} deleted successfully.")
     except SQLAlchemyError as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.error(f"Database error in delete_product: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="A database error occurred.")
     except HTTPException as e:
         await db.rollback()
         raise e
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        logger.error(f"Unexpected error in delete_product: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")

@@ -11,7 +11,6 @@ from sqlalchemy.orm import selectinload
 from app.models import RefreshToken, User
 from app.schemas.user import SUserChangePassword
 from app.config.settings import get_settings
-from app.dao import UserDAO, RefreshTokenDAO
 
 app_config = get_settings()
 
@@ -78,8 +77,8 @@ async def authenticate_user(email: EmailStr, password: str, db: AsyncSession):
 
 
 async def change_password(user: User, data: SUserChangePassword, db: AsyncSession):
-    if not pwd_context.verify(data.old_password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Incorrect old password")
+    if not pwd_context.verify(data.current_password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Incorrect current password")
 
     new_hashed_pass = pwd_context.hash(data.new_password)
     user.hashed_password = new_hashed_pass
