@@ -15,9 +15,15 @@ from app.utils.auth import (
     get_password_hash,
     authenticate_user,
     create_access_token,
-    change_password as utils_change_pwd
+    change_password as utils_change_pwd,
 )
-from app.schemas.user import SUserRegister, SUserAuth, SUserUpdate, SUserResponse, SUserChangePassword
+from app.schemas.user import (
+    SUserRegister,
+    SUserAuth,
+    SUserUpdate,
+    SUserResponse,
+    SUserChangePassword,
+)
 from app.schemas.role import SRoleAssignRequest
 from app.models import User, RefreshToken, Role
 from app.db.base import get_async_db_session
@@ -26,7 +32,7 @@ from app.utils import (
     get_user_by_refresh_token,
     create_refresh_token,
     save_refresh_token,
-    AccessControlService
+    AccessControlService,
 )
 from app.config.settings import get_settings
 
@@ -40,7 +46,7 @@ else:
     logger.setLevel(logging.ERROR)
 
 handler = logging.StreamHandler()
-formatter = logging.Formatter('%(levelname)s:     %(message)s')
+formatter = logging.Formatter("%(levelname)s:     %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
@@ -48,9 +54,18 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
 @router.post("/register/", response_model=SUserResponse)
-async def register_user(request: Request, user_data: SUserRegister, db: AsyncSession=Depends(get_async_db_session)) -> dict:
+async def register_user(
+    request: Request,
+    user_data: SUserRegister,
+    db: AsyncSession = Depends(get_async_db_session),
+) -> dict:
     try:
-        q = select(User).where(or_(User.email == user_data.email, User.username == user_data.username))
+        q = select(User).where(
+            or_(
+                User.email == user_data.email,
+                User.username == user_data.username,
+            )
+        )
         q = await db.execute(q)
         user = q.scalars().all()
         if user:
@@ -63,9 +78,11 @@ async def register_user(request: Request, user_data: SUserRegister, db: AsyncSes
         role = q.scalar_one_or_none()
         if not role:
             raise Exception("guest role not found")
-        
+
         if user_dict["password"] != user_dict["password2"]:
-            raise HTTPException(status_code=400, detail="Passwords do not match")
+            raise HTTPException(
+                status_code=400, detail="Passwords do not match"
+            )
 
         user_dict["hashed_password"] = get_password_hash(user_data.password)
         user_dict["role_id"] = role.id
@@ -78,9 +95,14 @@ async def register_user(request: Request, user_data: SUserRegister, db: AsyncSes
             logger.info(f"User registered successfully: {user.username}")
         except SQLAlchemyError as e:
             await db.rollback()
-            logger.error(f"Database error during user registration: {type(e).__name__}: {e}")
-            raise HTTPException(status_code=500, detail="A database error occurred during registration.")
-                
+            logger.error(
+                f"Database error during user registration: {type(e).__name__}: {e}"
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="A database error occurred during registration.",
+            )
+
         result = await db.execute(
             select(User)
             .options(selectinload(User.role))
@@ -90,7 +112,9 @@ async def register_user(request: Request, user_data: SUserRegister, db: AsyncSes
         return user_with_role
 
     except SQLAlchemyError as e:
-        logger.error(f"Database error in register_user: {type(e).__name__}: {e}")
+        logger.error(
+            f"Database error in register_user: {type(e).__name__}: {e}"
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="A database error occurred.",
@@ -100,9 +124,12 @@ async def register_user(request: Request, user_data: SUserRegister, db: AsyncSes
         raise e
 
     except Exception as e:
-        logger.error(f"Unexpected error in register_user: {type(e).__name__}: {e}")
+        logger.error(
+            f"Unexpected error in register_user: {type(e).__name__}: {e}"
+        )
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal server error occurred."
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An internal server error occurred.",
         )
 
 
@@ -115,9 +142,7 @@ async def login_user(
 ):
     try:
         user = await authenticate_user(
-            email=user_data.email,
-            password=user_data.password,
-            db=db
+            email=user_data.email, password=user_data.password, db=db
         )
         if user is None:
             raise HTTPException(
@@ -132,7 +157,9 @@ async def login_user(
                 body = await request.json()
                 old_refresh_token = body.get("refresh_token")
             except Exception as e:
-                logger.error(f"JSON parse error in login_user: {type(e).__name__}: {e}")
+                logger.error(
+                    f"JSON parse error in login_user: {type(e).__name__}: {e}"
+                )
                 old_refresh_token = None
         if old_refresh_token:
             await db.execute(
@@ -182,7 +209,8 @@ async def login_user(
         await db.rollback()
         logger.error(f"Unexpected error in login_user: {type(e).__name__}: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal server error occurred."
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An internal server error occurred.",
         )
 
 
@@ -200,7 +228,9 @@ async def refresh_token(
                 body = await request.json()
                 refresh_token = body.get("refresh_token")
             except Exception as e:
-                logger.error(f"JSON parse error in refresh_token: {type(e).__name__}: {e}")
+                logger.error(
+                    f"JSON parse error in refresh_token: {type(e).__name__}: {e}"
+                )
                 refresh_token = None
 
         if not refresh_token:
@@ -250,7 +280,9 @@ async def refresh_token(
 
     except SQLAlchemyError as e:
         await db.rollback()
-        logger.error(f"Database error in refresh_token: {type(e).__name__}: {e}")
+        logger.error(
+            f"Database error in refresh_token: {type(e).__name__}: {e}"
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="A database error occurred.",
@@ -262,15 +294,17 @@ async def refresh_token(
 
     except Exception as e:
         await db.rollback()
-        logger.error(f"Unexpected error in refresh_token: {type(e).__name__}: {e}")
+        logger.error(
+            f"Unexpected error in refresh_token: {type(e).__name__}: {e}"
+        )
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal server error occurred."
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An internal server error occurred.",
         )
 
 
 @router.get("/me/", response_model=SUserResponse)
 async def get_me(user_data: User = Depends(get_current_user)):
-    user_data.full_name = " " # TODO: убрать заглушку
     return user_data
 
 
@@ -309,16 +343,20 @@ async def logout_user(
 
     except Exception as e:
         await db.rollback()
-        logger.error(f"Unexpected error in logout_user: {type(e).__name__}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal server error occurred."
+        logger.error(
+            f"Unexpected error in logout_user: {type(e).__name__}: {e}"
         )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An internal server error occurred.",
+        )
+
 
 @router.post("/assign_role")
 async def assign_role(
     request: SRoleAssignRequest,
     current_user: User = Depends(get_current_user_admin),
-    db: AsyncSession = Depends(get_async_db_session)
+    db: AsyncSession = Depends(get_async_db_session),
 ):
     try:
         if request.identifier_type == "email":
@@ -327,9 +365,7 @@ async def assign_role(
             condition = User.username == request.user_identifier
 
         result = await db.execute(
-            select(User)
-            .options(selectinload(User.role))
-            .where(condition)
+            select(User).options(selectinload(User.role)).where(condition)
         )
         user = result.scalars().first()
 
@@ -357,15 +393,19 @@ async def assign_role(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="A database error occurred.",
         )
-    
+
     except HTTPException as e:
         await db.rollback()
         raise e
 
     except Exception as e:
         await db.rollback()
-        logger.error(f"Unexpected error in assign_role: {type(e).__name__}: {e}")
-        raise HTTPException(status_code=500, detail="An internal server error occurred.")
+        logger.error(
+            f"Unexpected error in assign_role: {type(e).__name__}: {e}"
+        )
+        raise HTTPException(
+            status_code=500, detail="An internal server error occurred."
+        )
 
 
 @router.patch("/{user_id}", response_model=SUserResponse)
@@ -388,17 +428,22 @@ async def update_user(
             is_owner=False,
             db=db,
         )
-        is_owner = (user.id == current_user.id)
+        is_owner = user.id == current_user.id
 
         if not (read_all or is_owner):
             raise HTTPException(status_code=403, detail="Access denied")
         update_data = user_update.model_dump(exclude_unset=True)
 
         if update_data.get("username") is not None:
-            result = await db.execute(select(User).where(User.username == update_data["username"]))
+            result = await db.execute(
+                select(User).where(User.username == update_data["username"])
+            )
             user_same_uname = result.scalars().first()
             if user_same_uname:
-                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="User with this username already exists")
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="User with this username already exists",
+                )
 
         for field, value in update_data.items():
             setattr(user, field, value)
@@ -412,16 +457,22 @@ async def update_user(
     except SQLAlchemyError as e:
         await db.rollback()
         logger.error(f"Database error in update_user: {type(e).__name__}: {e}")
-        raise HTTPException(status_code=500, detail="A database error occurred.")
-    
+        raise HTTPException(
+            status_code=500, detail="A database error occurred."
+        )
+
     except HTTPException as e:
         await db.rollback()
         raise e
-    
+
     except Exception as e:
         await db.rollback()
-        logger.error(f"Unexpected error in update_user: {type(e).__name__}: {e}")
-        raise HTTPException(status_code=500, detail="An internal server error occurred.")
+        logger.error(
+            f"Unexpected error in update_user: {type(e).__name__}: {e}"
+        )
+        raise HTTPException(
+            status_code=500, detail="An internal server error occurred."
+        )
 
 
 @router.post("/change-password")
@@ -432,13 +483,19 @@ async def change_password(
 ):
     try:
         await utils_change_pwd(current_user, data, db)
-        logger.info(f"Password changed successfully for user: {current_user.id}")
+        logger.info(
+            f"Password changed successfully for user: {current_user.id}"
+        )
         return {"msg": "Password updated successfully"}
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Unexpected error in change_password: {type(e).__name__}: {e}")
-        raise HTTPException(status_code=500, detail="An internal server error occurred.")
+        logger.error(
+            f"Unexpected error in change_password: {type(e).__name__}: {e}"
+        )
+        raise HTTPException(
+            status_code=500, detail="An internal server error occurred."
+        )
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -446,7 +503,7 @@ async def deactivate_user(
     user_id: int,
     response: Response,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db_session)
+    db: AsyncSession = Depends(get_async_db_session),
 ):
     try:
         result = await db.execute(select(User).where(User.id == user_id))
@@ -464,24 +521,32 @@ async def deactivate_user(
 
         if not (delete_all_perm or is_owner):
             raise HTTPException(status_code=403, detail="Access denied")
-        
+
         response.delete_cookie("users_access_token")
         response.delete_cookie("users_refresh_token")
         user.is_active = False
         db.add(user)
         await db.commit()
         logger.info(f"User {user_id} deactivated successfully.")
-    
+
     except SQLAlchemyError as e:
         await db.rollback()
-        logger.error(f"Database error in deactivate_user: {type(e).__name__}: {e}")
-        raise HTTPException(status_code=500, detail="A database error occurred.")
-    
+        logger.error(
+            f"Database error in deactivate_user: {type(e).__name__}: {e}"
+        )
+        raise HTTPException(
+            status_code=500, detail="A database error occurred."
+        )
+
     except HTTPException as e:
         await db.rollback()
         raise e
-    
+
     except Exception as e:
         await db.rollback()
-        logger.error(f"Unexpected error in deactivate_user: {type(e).__name__}: {e}")
-        raise HTTPException(status_code=500, detail="An internal server error occurred.")
+        logger.error(
+            f"Unexpected error in deactivate_user: {type(e).__name__}: {e}"
+        )
+        raise HTTPException(
+            status_code=500, detail="An internal server error occurred."
+        )

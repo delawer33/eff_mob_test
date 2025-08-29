@@ -1,6 +1,4 @@
-import enum
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
-from sqlalchemy.dialects.postgresql import ENUM as Enum
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 
@@ -16,9 +14,11 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     full_name = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    created_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
     role_id = Column(Integer, ForeignKey("roles.id"), nullable=False)
-    
+
     role = relationship("Role")
 
     refresh_tokens = relationship(
@@ -32,6 +32,4 @@ class User(Base):
         return f"<User(id={self.id}, username={self.username}, email={self.email})>"
 
 
-__all__ = [
-    "User"
-]
+__all__ = ["User"]

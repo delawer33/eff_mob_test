@@ -22,6 +22,4 @@ class RefreshToken(Base):
     user = relationship("User", back_populates="refresh_tokens")
 
 
-__all__ = [
-    "RefreshToken"    
-]
+__all__ = ["RefreshToken"]

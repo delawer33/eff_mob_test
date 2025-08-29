@@ -10,7 +10,9 @@ class AccessRoleRule(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     role_id = Column(Integer, ForeignKey("roles.id"), nullable=False)
-    element_id = Column(Integer, ForeignKey("business_elements.id"), nullable=False)
+    element_id = Column(
+        Integer, ForeignKey("business_elements.id"), nullable=False
+    )
 
     read_permission = Column(Boolean, default=False)
     read_all_permission = Column(Boolean, default=False)
@@ -24,6 +26,4 @@ class AccessRoleRule(Base):
     element = relationship("BusinessElement", back_populates="access_rules")
 
 
-__all__ = [
-    "AccessRoleRule"
-]
+__all__ = ["AccessRoleRule"]

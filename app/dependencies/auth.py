@@ -11,6 +11,7 @@ from app.db.base import get_async_db_session
 
 app_settings = get_settings()
 
+
 def get_token(request: Request):
     auth = request.headers.get("Authorization")
     scheme, param = get_authorization_scheme_param(auth)
@@ -28,7 +29,9 @@ def get_token(request: Request):
     return token
 
 
-async def get_current_user(token: str = Depends(get_token), db=Depends(get_async_db_session)):
+async def get_current_user(
+    token: str = Depends(get_token), db=Depends(get_async_db_session)
+):
     try:
         auth_data = app_settings.get_auth_data()
         payload = jwt.decode(
@@ -53,7 +56,11 @@ async def get_current_user(token: str = Depends(get_token), db=Depends(get_async
             detail="User ID not found",
         )
 
-    q = select(User).where(User.id == int(user_id)).options(selectinload(User.role))
+    q = (
+        select(User)
+        .where(User.id == int(user_id))
+        .options(selectinload(User.role))
+    )
     q = await db.execute(q)
     user = q.scalar_one_or_none()
     if not user or user.is_active is False:
@@ -72,4 +79,3 @@ async def get_current_user_admin(user: User = Depends(get_current_user)):
             detail="Access denied",
         )
     return user
-

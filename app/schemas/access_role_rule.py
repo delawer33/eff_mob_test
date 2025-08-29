@@ -1,7 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
-from .role import SRoleResponse
 
 class SAccessRoleRuleBase(BaseModel):
     role_id: int
@@ -14,8 +13,10 @@ class SAccessRoleRuleBase(BaseModel):
     delete_permission: Optional[bool]
     delete_all_permission: Optional[bool]
 
+
 class SAccessRoleRuleCreate(SAccessRoleRuleBase):
     pass
+
 
 class SAccessRoleRuleUpdate(BaseModel):
     read_permission: Optional[bool] = False
@@ -26,9 +27,8 @@ class SAccessRoleRuleUpdate(BaseModel):
     delete_permission: Optional[bool] = False
     delete_all_permission: Optional[bool] = False
 
+
 class SAccessRoleRuleResponse(SAccessRoleRuleBase):
     id: int
 
-    model_config = ConfigDict(
-        from_attributes=True
-    )
+    model_config = ConfigDict(from_attributes=True)

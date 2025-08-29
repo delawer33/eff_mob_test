@@ -36,6 +36,7 @@ class SUserAuth(BaseModel):
         description="Пароль, от 5 до 50 знаков",
     )
 
+
 class SUserResponse(BaseModel):
     id: int
     username: str
@@ -45,9 +46,7 @@ class SUserResponse(BaseModel):
     role: SRoleResponse
     created_at: datetime
 
-    model_config = ConfigDict(
-        from_attributes=True
-    )
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SUserUpdate(BaseModel):
@@ -58,4 +57,3 @@ class SUserUpdate(BaseModel):
 class SUserChangePassword(BaseModel):
     current_password: str = Field(..., min_length=5, max_length=50)
     new_password: str = Field(..., min_length=5, max_length=50)
-

@@ -68,21 +68,29 @@ async def get_user_by_refresh_token(token: str, db: AsyncSession):
 
 
 async def authenticate_user(email: EmailStr, password: str, db: AsyncSession):
-    q = select(User).where(User.email==email)
+    q = select(User).where(User.email == email)
     res = await db.execute(q)
     user = res.scalar_one_or_none()
-    if not user or not user.is_active or verify_password(password, user.hashed_password) is False:
+    if (
+        not user
+        or not user.is_active
+        or verify_password(password, user.hashed_password) is False
+    ):
         return None
     return user
 
 
-async def change_password(user: User, data: SUserChangePassword, db: AsyncSession):
+async def change_password(
+    user: User, data: SUserChangePassword, db: AsyncSession
+):
     if not pwd_context.verify(data.current_password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Incorrect current password")
+        raise HTTPException(
+            status_code=401, detail="Incorrect current password"
+        )
 
     new_hashed_pass = pwd_context.hash(data.new_password)
     user.hashed_password = new_hashed_pass
-    
+
     db.add(user)
     await db.commit()
     await db.refresh(user)
@@ -94,5 +102,5 @@ all = [
     "save_refresh_token",
     "get_user_by_refresh_token",
     "authenticate_user",
-    "change_password"
+    "change_password",
 ]

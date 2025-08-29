@@ -12,20 +12,41 @@ async def _override_admin_user(admin_role_id: int):
 
 
 @pytest.mark.asyncio
-async def test_create_access_rule_success(client: AsyncClient, db_session: AsyncSession):
-    role = (await db_session.execute(select(Role).where(Role.name == "guest"))).scalar_one()
-    element = (await db_session.execute(select(BusinessElement).where(BusinessElement.name == "stores"))).scalar_one()
+async def test_create_access_rule_success(
+    client: AsyncClient, db_session: AsyncSession
+):
+    role = (
+        await db_session.execute(select(Role).where(Role.name == "guest"))
+    ).scalar_one()
+    element = (
+        await db_session.execute(
+            select(BusinessElement).where(BusinessElement.name == "stores")
+        )
+    ).scalar_one()
 
-    exists = (await db_session.execute(
-        select(AccessRoleRule).where(AccessRoleRule.role_id == role.id, AccessRoleRule.element_id == element.id)
-    )).scalars().first()
+    exists = (
+        (
+            await db_session.execute(
+                select(AccessRoleRule).where(
+                    AccessRoleRule.role_id == role.id,
+                    AccessRoleRule.element_id == element.id,
+                )
+            )
+        )
+        .scalars()
+        .first()
+    )
     if exists:
         await db_session.delete(exists)
         await db_session.commit()
 
-    admin_role = (await db_session.execute(select(Role).where(Role.name == "admin"))).scalar_one()
+    admin_role = (
+        await db_session.execute(select(Role).where(Role.name == "admin"))
+    ).scalar_one()
+
     async def _admin():
         return await _override_admin_user(admin_role.id)
+
     app.dependency_overrides[get_current_user_admin] = _admin
     try:
         payload = {
@@ -49,13 +70,30 @@ async def test_create_access_rule_success(client: AsyncClient, db_session: Async
 
 
 @pytest.mark.asyncio
-async def test_create_access_rule_duplicate(client: AsyncClient, db_session: AsyncSession):
-    role = (await db_session.execute(select(Role).where(Role.name == "guest"))).scalar_one()
-    element = (await db_session.execute(select(BusinessElement).where(BusinessElement.name == "orders"))).scalar_one()
+async def test_create_access_rule_duplicate(
+    client: AsyncClient, db_session: AsyncSession
+):
+    role = (
+        await db_session.execute(select(Role).where(Role.name == "guest"))
+    ).scalar_one()
+    element = (
+        await db_session.execute(
+            select(BusinessElement).where(BusinessElement.name == "orders")
+        )
+    ).scalar_one()
 
-    rule = (await db_session.execute(
-        select(AccessRoleRule).where(AccessRoleRule.role_id == role.id, AccessRoleRule.element_id == element.id)
-    )).scalars().first()
+    rule = (
+        (
+            await db_session.execute(
+                select(AccessRoleRule).where(
+                    AccessRoleRule.role_id == role.id,
+                    AccessRoleRule.element_id == element.id,
+                )
+            )
+        )
+        .scalars()
+        .first()
+    )
     if rule is None:
         rule = AccessRoleRule(
             role_id=role.id,
@@ -72,9 +110,13 @@ async def test_create_access_rule_duplicate(client: AsyncClient, db_session: Asy
         await db_session.commit()
         await db_session.refresh(rule)
 
-    admin_role = (await db_session.execute(select(Role).where(Role.name == "admin"))).scalar_one()
+    admin_role = (
+        await db_session.execute(select(Role).where(Role.name == "admin"))
+    ).scalar_one()
+
     async def _admin():
         return await _override_admin_user(admin_role.id)
+
     app.dependency_overrides[get_current_user_admin] = _admin
     try:
         payload = {
@@ -96,10 +138,16 @@ async def test_create_access_rule_duplicate(client: AsyncClient, db_session: Asy
 
 
 @pytest.mark.asyncio
-async def test_get_access_rules_list(client: AsyncClient, db_session: AsyncSession):
-    admin_role = (await db_session.execute(select(Role).where(Role.name == "admin"))).scalar_one()
+async def test_get_access_rules_list(
+    client: AsyncClient, db_session: AsyncSession
+):
+    admin_role = (
+        await db_session.execute(select(Role).where(Role.name == "admin"))
+    ).scalar_one()
+
     async def _admin():
         return await _override_admin_user(admin_role.id)
+
     app.dependency_overrides[get_current_user_admin] = _admin
     try:
         resp = await client.get("/permissions/access-rules/")
@@ -111,9 +159,17 @@ async def test_get_access_rules_list(client: AsyncClient, db_session: AsyncSessi
 
 
 @pytest.mark.asyncio
-async def test_get_access_rule_by_id(client: AsyncClient, db_session: AsyncSession):
-    role = (await db_session.execute(select(Role).where(Role.name == "guest"))).scalar_one()
-    element = (await db_session.execute(select(BusinessElement).where(BusinessElement.name == "stores"))).scalar_one()
+async def test_get_access_rule_by_id(
+    client: AsyncClient, db_session: AsyncSession
+):
+    role = (
+        await db_session.execute(select(Role).where(Role.name == "guest"))
+    ).scalar_one()
+    element = (
+        await db_session.execute(
+            select(BusinessElement).where(BusinessElement.name == "stores")
+        )
+    ).scalar_one()
 
     rule = AccessRoleRule(
         role_id=role.id,
@@ -130,9 +186,13 @@ async def test_get_access_rule_by_id(client: AsyncClient, db_session: AsyncSessi
     await db_session.commit()
     await db_session.refresh(rule)
 
-    admin_role = (await db_session.execute(select(Role).where(Role.name == "admin"))).scalar_one()
+    admin_role = (
+        await db_session.execute(select(Role).where(Role.name == "admin"))
+    ).scalar_one()
+
     async def _admin():
         return await _override_admin_user(admin_role.id)
+
     app.dependency_overrides[get_current_user_admin] = _admin
     try:
         r = await client.get(f"/permissions/access-rules/{rule.id}")
@@ -144,9 +204,17 @@ async def test_get_access_rule_by_id(client: AsyncClient, db_session: AsyncSessi
 
 
 @pytest.mark.asyncio
-async def test_update_access_rule_by_id(client: AsyncClient, db_session: AsyncSession):
-    role = (await db_session.execute(select(Role).where(Role.name == "guest"))).scalar_one()
-    element = (await db_session.execute(select(BusinessElement).where(BusinessElement.name == "orders"))).scalar_one()
+async def test_update_access_rule_by_id(
+    client: AsyncClient, db_session: AsyncSession
+):
+    role = (
+        await db_session.execute(select(Role).where(Role.name == "guest"))
+    ).scalar_one()
+    element = (
+        await db_session.execute(
+            select(BusinessElement).where(BusinessElement.name == "orders")
+        )
+    ).scalar_one()
 
     rule = AccessRoleRule(
         role_id=role.id,
@@ -163,12 +231,19 @@ async def test_update_access_rule_by_id(client: AsyncClient, db_session: AsyncSe
     await db_session.commit()
     await db_session.refresh(rule)
 
-    admin_role = (await db_session.execute(select(Role).where(Role.name == "admin"))).scalar_one()
+    admin_role = (
+        await db_session.execute(select(Role).where(Role.name == "admin"))
+    ).scalar_one()
+
     async def _admin():
         return await _override_admin_user(admin_role.id)
+
     app.dependency_overrides[get_current_user_admin] = _admin
     try:
-        resp = await client.patch(f"/permissions/access-rules/{rule.id}", json={"update_permission": True})
+        resp = await client.patch(
+            f"/permissions/access-rules/{rule.id}",
+            json={"update_permission": True},
+        )
         assert resp.status_code == 200
         body = resp.json()
         assert body["update_permission"] is True
@@ -177,13 +252,30 @@ async def test_update_access_rule_by_id(client: AsyncClient, db_session: AsyncSe
 
 
 @pytest.mark.asyncio
-async def test_update_access_rule_by_pair(client: AsyncClient, db_session: AsyncSession):
-    role = (await db_session.execute(select(Role).where(Role.name == "guest"))).scalar_one()
-    element = (await db_session.execute(select(BusinessElement).where(BusinessElement.name == "orders"))).scalar_one()
+async def test_update_access_rule_by_pair(
+    client: AsyncClient, db_session: AsyncSession
+):
+    role = (
+        await db_session.execute(select(Role).where(Role.name == "guest"))
+    ).scalar_one()
+    element = (
+        await db_session.execute(
+            select(BusinessElement).where(BusinessElement.name == "orders")
+        )
+    ).scalar_one()
 
-    rule = (await db_session.execute(
-        select(AccessRoleRule).where(AccessRoleRule.role_id == role.id, AccessRoleRule.element_id == element.id)
-    )).scalars().first()
+    rule = (
+        (
+            await db_session.execute(
+                select(AccessRoleRule).where(
+                    AccessRoleRule.role_id == role.id,
+                    AccessRoleRule.element_id == element.id,
+                )
+            )
+        )
+        .scalars()
+        .first()
+    )
     if rule is None:
         rule = AccessRoleRule(
             role_id=role.id,
@@ -200,12 +292,20 @@ async def test_update_access_rule_by_pair(client: AsyncClient, db_session: Async
         await db_session.commit()
         await db_session.refresh(rule)
 
-    admin_role = (await db_session.execute(select(Role).where(Role.name == "admin"))).scalar_one()
+    admin_role = (
+        await db_session.execute(select(Role).where(Role.name == "admin"))
+    ).scalar_one()
+
     async def _admin():
         return await _override_admin_user(admin_role.id)
+
     app.dependency_overrides[get_current_user_admin] = _admin
     try:
-        resp = await client.patch("/permissions/access-rules/", params={"role_id": role.id, "element_id": element.id}, json={"delete_permission": True})
+        resp = await client.patch(
+            "/permissions/access-rules/",
+            params={"role_id": role.id, "element_id": element.id},
+            json={"delete_permission": True},
+        )
         assert resp.status_code == 200
         body = resp.json()
         assert body["delete_permission"] is True
@@ -214,9 +314,17 @@ async def test_update_access_rule_by_pair(client: AsyncClient, db_session: Async
 
 
 @pytest.mark.asyncio
-async def test_delete_access_rule_success(client: AsyncClient, db_session: AsyncSession):
-    role = (await db_session.execute(select(Role).where(Role.name == "guest"))).scalar_one()
-    element = (await db_session.execute(select(BusinessElement).where(BusinessElement.name == "stores"))).scalar_one()
+async def test_delete_access_rule_success(
+    client: AsyncClient, db_session: AsyncSession
+):
+    role = (
+        await db_session.execute(select(Role).where(Role.name == "guest"))
+    ).scalar_one()
+    element = (
+        await db_session.execute(
+            select(BusinessElement).where(BusinessElement.name == "stores")
+        )
+    ).scalar_one()
 
     rule = AccessRoleRule(
         role_id=role.id,
@@ -233,9 +341,13 @@ async def test_delete_access_rule_success(client: AsyncClient, db_session: Async
     await db_session.commit()
     await db_session.refresh(rule)
 
-    admin_role = (await db_session.execute(select(Role).where(Role.name == "admin"))).scalar_one()
+    admin_role = (
+        await db_session.execute(select(Role).where(Role.name == "admin"))
+    ).scalar_one()
+
     async def _admin():
         return await _override_admin_user(admin_role.id)
+
     app.dependency_overrides[get_current_user_admin] = _admin
     try:
         resp = await client.delete(f"/permissions/access-rules/{rule.id}")

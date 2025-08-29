@@ -9,10 +9,9 @@ class Role(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, nullable=False)
 
-    access_rules = relationship("AccessRoleRule", back_populates="role", cascade='all, delete-orphan')
+    access_rules = relationship(
+        "AccessRoleRule", back_populates="role", cascade="all, delete-orphan"
+    )
 
 
-__all__ = [
-    "Role"    
-]
-
+__all__ = ["Role"]

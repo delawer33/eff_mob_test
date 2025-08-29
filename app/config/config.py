@@ -15,10 +15,7 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 15
 
     def get_auth_data(self):
-        return {
-            'secret_key': self.secret_key,
-            'algorithm': self.algorithm
-        }
+        return {"secret_key": self.secret_key, "algorithm": self.algorithm}
 
     model_config = SettingsConfigDict(
         env_file=Path(__file__).parent / ".env", extra="ignore"

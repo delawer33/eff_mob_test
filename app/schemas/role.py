@@ -5,18 +5,20 @@ from typing import Literal
 class SRoleBase(BaseModel):
     name: str
 
+
 class SRoleUpdate(BaseModel):
     name: str
+
 
 class SRoleCreate(SRoleBase):
     pass
 
+
 class SRoleResponse(SRoleBase):
     id: int
 
-    model_config = ConfigDict(
-        from_attributes=True
-    )
+    model_config = ConfigDict(from_attributes=True)
+
 
 class SRoleAssignRequest(BaseModel):
     user_identifier: str

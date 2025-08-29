@@ -1,6 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float, ForeignKey
 from sqlalchemy.orm import relationship
-from sqlalchemy.ext.declarative import declarative_base
 
 from app.db.base import Base
 
@@ -17,6 +16,4 @@ class Product(Base):
     owner = relationship("User", back_populates="products")
 
 
-__all__ = [
-    "Product"
-]
+__all__ = ["Product"]

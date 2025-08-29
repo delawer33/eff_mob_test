@@ -44,9 +44,4 @@ async def get_async_db_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-__all__ = [
-    "Base",
-    "engine",
-    "async_sessionmaker",
-    "get_async_db_session"
-]
+__all__ = ["Base", "engine", "async_sessionmaker", "get_async_db_session"]
