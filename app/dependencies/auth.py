@@ -23,7 +23,7 @@ def get_token(request: Request):
 
     if not token:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен не найден"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token not found"
         )
     return token
 
@@ -36,21 +36,21 @@ async def get_current_user(token: str = Depends(get_token), db=Depends(get_async
         )
     except JWTError:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен не валидный"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invalid"
         )
 
     expire = payload.get("exp")
     expire_time = datetime.fromtimestamp(int(expire), tz=timezone.utc)
     if (not expire) or (expire_time < datetime.now(timezone.utc)):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен Истек"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired"
         )
 
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Не найден ID пользователя",
+            detail="User ID not found",
         )
 
     q = select(User).where(User.id == int(user_id)).options(selectinload(User.role))
@@ -59,7 +59,7 @@ async def get_current_user(token: str = Depends(get_token), db=Depends(get_async
     if not user or user.is_active is False:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Пользователь с таким ID не найден",
+            detail="User ID not found",
         )
 
     return user
@@ -69,7 +69,7 @@ async def get_current_user_admin(user: User = Depends(get_current_user)):
     if user.role.name != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="У вас нет прав администратора",
+            detail="Access denied",
         )
     return user
 

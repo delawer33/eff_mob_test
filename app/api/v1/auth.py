@@ -394,7 +394,7 @@ async def update_user(
             raise HTTPException(status_code=403, detail="Access denied")
         update_data = user_update.model_dump(exclude_unset=True)
 
-        if update_data["username"] is not None:
+        if update_data.get("username") is not None:
             result = await db.execute(select(User).where(User.username == update_data["username"]))
             user_same_uname = result.scalars().first()
             if user_same_uname:
